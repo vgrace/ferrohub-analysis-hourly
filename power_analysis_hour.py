@@ -241,17 +241,17 @@ def get_energy_counter_averages(aggregate_values):
     periodvalues["aipL3"]=energy_counter_data["lcp3"]
     periodvalues["aip"] = periodvalues["aipL1"] + periodvalues["aipL2"] + periodvalues["aipL3"]
     # Reactive power values are currently not present in energy counter data
-    periodvalues["rip"]=None
-    periodvalues["ripL1"]=None
-    periodvalues["ripL2"]=None
-    periodvalues["ripL3"]=None
+    #periodvalues["rip"]=None
+    #periodvalues["ripL1"]=None
+    #periodvalues["ripL2"]=None
+    #periodvalues["ripL3"]=None
     # Base power may be fetched from DB elsewhere but we set them up here for now
-    periodvalues["abp"]=None
-    periodvalues["abpL1"]=None
-    periodvalues["abpL2"]=None
-    periodvalues["abpL3"]=None
-    periodvalues["rbp"]=None
-    periodvalues["rbpL1"]=None
-    periodvalues["rbpL2"]=None
-    periodvalues["rbpL3"]=None
+    #periodvalues["abp"]=None
+    #periodvalues["abpL1"]=None
+    #periodvalues["abpL2"]=None
+    #periodvalues["abpL3"]=None
+    #periodvalues["rbp"]=None
+    #periodvalues["rbpL1"]=None
+    #periodvalues["rbpL2"]=None
+    #periodvalues["rbpL3"]=None
     return periodvalues
