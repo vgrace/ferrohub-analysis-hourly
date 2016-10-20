@@ -102,8 +102,8 @@ def mdb_get_energy_counter_data_grouped_hourly(input):
 
         TODO: Group by hour
         """
-    utc_adjusted_starttime = (input["starttime"] - timedelta(milliseconds=cest_offset_ms))
-    utc_adjusted_endtime = (input["endtime"] - timedelta(milliseconds=cest_offset_ms))
+    utc_adjusted_starttime = (input["starttime"] - timedelta(milliseconds=cest_offset_ms)) #(datetime.combine(input["starttime"],time.min) - timedelta(milliseconds=cest_offset_ms)) #
+    utc_adjusted_endtime = ((input["endtime"].replace(second=59) - timedelta(minutes = 1)) - timedelta(milliseconds=cest_offset_ms)) #.replace(minute=59, second=59) (datetime.combine(input["endtime"], time(0, 59, 59, 999999)) - timedelta(milliseconds=cest_offset_ms)) #
     print(utc_adjusted_starttime)
     print(utc_adjusted_endtime)
     res = list(db.energydata.aggregate(pipeline=
