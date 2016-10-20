@@ -85,9 +85,9 @@ def mdb_test(input):
         Another variation that does not require sorting is to use $max, $min instead of $last, $first
         Group by hour
         """
-    utc_adjusted_starttime = (datetime.combine(input["starttime"],time.min) - timedelta(milliseconds=cest_offset_ms))
+    utc_adjusted_starttime = (datetime.strptime(input["starttime"], "%Y-%m-%d %H:%M:%S"))# - timedelta(milliseconds=cest_offset_ms))#(datetime.combine(input["starttime"],time.min) - timedelta(milliseconds=cest_offset_ms))
     print(utc_adjusted_starttime)
-    utc_adjusted_endtime = (datetime.combine(input["endtime"],time.max) - timedelta(milliseconds=cest_offset_ms))
+    utc_adjusted_endtime = (datetime.strptime(input["endtime"], "%Y-%m-%d %H:%M:%S"))# - timedelta(milliseconds=cest_offset_ms))#(datetime.combine(input["endtime"],time.max) - timedelta(milliseconds=cest_offset_ms))
     print(utc_adjusted_endtime)
     res = list(db.energydata.aggregate(pipeline=
         [{"$match" :{"id": input["energyhubid"] , "ts":{"$gte": utc_adjusted_starttime, "$lte": utc_adjusted_endtime}}},
@@ -102,8 +102,10 @@ def mdb_get_energy_counter_data_grouped_hourly(input):
 
         TODO: Group by hour
         """
-    utc_adjusted_starttime = (datetime.combine(input["starttime"],time.min) - timedelta(milliseconds=cest_offset_ms))
-    utc_adjusted_endtime = (datetime.combine(input["endtime"],time.max) - timedelta(milliseconds=cest_offset_ms))
+    utc_adjusted_starttime = (input["starttime"] - timedelta(milliseconds=cest_offset_ms))
+    utc_adjusted_endtime = (input["endtime"] - timedelta(milliseconds=cest_offset_ms))
+    print(utc_adjusted_starttime)
+    print(utc_adjusted_endtime)
     res = list(db.energydata.aggregate(pipeline=
         [{"$match" :{"id": input["energyhubid"] , "ts":{"$gte": utc_adjusted_starttime, "$lte": utc_adjusted_endtime}}},
         { "$sort": { "ts": 1} }, # order by ascending date
