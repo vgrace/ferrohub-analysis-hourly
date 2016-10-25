@@ -17,6 +17,7 @@ while True:
             hub_aggr = pah.get_energy_counter_aggregate(aggr_data)
             doc["data"]=list(hub_aggr)
             pah.mdb_insert_poweranalysishour_result(doc)
+            """
             ready_job = {
                 "energyhubid": doc["energyhubid"],
                 "starttime": doc["starttime"],
@@ -27,6 +28,7 @@ while True:
                 "jobstatus":2
             }; 
             pah.mdb_insert_poweranalysishour_job(ready_job)
+            """
             pah.mdb_mark_job_done(doc)
         # do_something(msg)
         except StopIteration:
