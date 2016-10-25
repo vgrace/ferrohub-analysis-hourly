@@ -9,7 +9,7 @@ from datetime import time
 from bson.son import SON # As python dictionaries don’t maintain order you should use SON or collections.OrderedDict where explicit ordering is required eg “$sort”:
 
 # Constants
-no_of_seconds_in_a_day = 24 * 60 *60
+#no_of_seconds_in_a_day = 24 * 60 *60
 no_of_seconds_in_a_hour = 60 * 60
 cest_offset_ms = 1000 * 60 * 60 * 2 # Two hours in milliseconds
 connection = pymongo.MongoClient(analysis_config.main_mongodb_uri)
@@ -203,7 +203,7 @@ def get_energy_counter_averages_original(periodvalues):
             # print("Difference "+avg_name + ":")
             # print(first_value_64-last_value_64)
             # print(no_of_seconds_in_a_day)
-            power_avg_item[avg_name]=(last_value_64-first_value_64)/no_of_seconds_in_a_day
+            power_avg_item[avg_name]=(last_value_64-first_value_64)/no_of_seconds_in_a_hour
         else:
             power_avg_item[avg_name]=0
     return power_avg_item
@@ -235,7 +235,7 @@ def get_energy_counter_averages(aggregate_values):
             # print(no_of_seconds_in_a_day)
             # Calculated values are now in kW
             # Using 24h instead of actual timespan between first_ts and last_ts
-            energy_counter_data[avg_name]=(last_value_64-first_value_64)/24
+            energy_counter_data[avg_name]=(last_value_64-first_value_64) #/24
         else:
             energy_counter_data[avg_name]=0
     # Set up return values (in kW)
