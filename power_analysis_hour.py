@@ -37,6 +37,22 @@ def mdb_setup_poweranalysishour_job_collection():
     }
     mdb_insert_poweranalysishour_job(input)
 
+def mdb_setup_poweranalysishour_jobs_results_collection():
+    local_db.create_collection('poweranalysishour_jobs_results', capped= True, size= 65536, autoIndexId = False )
+    input = {
+    "energyhubid": "00:00:00:00:00:00",
+    "starttime": datetime.now() ,
+    "endtime": datetime.now()+timedelta(days=1) ,
+    "userid": "testuser",
+    "resultsid":"testresultsid",
+    "analysismodel":"HOURLYPOWER",
+    "jobstatus":1
+    }
+    mdb_insert_poweranalysishour_jobs_results(input)
+
+def mdb_insert_poweranalysishour_jobs_results(jobdata):
+    local_db["poweranalysishour_jobs_results"].insert(jobdata)
+
 def mdb_insert_poweranalysishour_job(jobdata):
     local_db["poweranalysishour_jobs"].insert(jobdata)
 
@@ -100,8 +116,6 @@ def mdb_get_energy_counter_data_grouped_hourly(input):
         Fetches energy counter data for an ehub between two dates, returning first and last values for each day.
         If necessary, $project + $subtract + $divide could be used to calculate the averages in MDB.
         Another variation that does not require sorting is to use $max, $min instead of $last, $first
-
-        TODO: Group by hour
         """
     utc_adjusted_starttime = (input["starttime"] - timedelta(milliseconds=cest_offset_ms)) #(datetime.combine(input["starttime"],time.min) - timedelta(milliseconds=cest_offset_ms)) #
     utc_adjusted_endtime = ((input["endtime"].replace(second=59) - timedelta(minutes = 1)) - timedelta(milliseconds=cest_offset_ms)) #.replace(minute=59, second=59) (datetime.combine(input["endtime"], time(0, 59, 59, 999999)) - timedelta(milliseconds=cest_offset_ms)) #
@@ -115,33 +129,33 @@ def mdb_get_energy_counter_data_grouped_hourly(input):
     "first_ts": {"$first":"$ts"},
     "last_ts": {"$last":"$ts"},
     # Energy External Production positive direction
-    "first_epq1": {"$first":"$epq1"},
-    "last_epq1": {"$last":"$epq1"},
-    "first_epq2": {"$first":"$epq2"},
-    "last_epq2": {"$last":"$epq2"},
-    "first_epq3": {"$first":"$epq3"},
-    "last_epq3": {"$last":"$epq3"},
+    #"first_epq1": {"$first":"$epq1"},
+    #"last_epq1": {"$last":"$epq1"},
+    #"first_epq2": {"$first":"$epq2"},
+    #"last_epq2": {"$last":"$epq2"},
+    #"first_epq3": {"$first":"$epq3"},
+    #"last_epq3": {"$last":"$epq3"},
     # Energy External Consumption negative direction
-    "first_ecq1": {"$first":"$ecq1"},
-    "last_ecq1": {"$last":"$ecq1"},
-    "first_ecq2": {"$first":"$ecq2"},
-    "last_ecq2": {"$last":"$ecq2"},
-    "first_ecq3": {"$first":"$ecq3"},
-    "last_ecq3": {"$last":"$ecq3"},
+    #"first_ecq1": {"$first":"$ecq1"},
+    #"last_ecq1": {"$last":"$ecq1"},
+    #"first_ecq2": {"$first":"$ecq2"},
+    #"last_ecq2": {"$last":"$ecq2"},
+    #"first_ecq3": {"$first":"$ecq3"},
+    #"last_ecq3": {"$last":"$ecq3"},
     # Energy Internal Production positive direction
-    "first_ipq1": {"$first":"$ipq1"},
-    "last_ipq1": {"$last":"$ipq1"},
-    "first_ipq2": {"$first":"$ipq2"},
-    "last_ipq2": {"$last":"$ipq2"},
-    "first_ipq3": {"$first":"$ipq3"},
-    "last_ipq3": {"$last":"$ipq3"},
+    #"first_ipq1": {"$first":"$ipq1"},
+    #"last_ipq1": {"$last":"$ipq1"},
+    #"first_ipq2": {"$first":"$ipq2"},
+    #"last_ipq2": {"$last":"$ipq2"},
+    #"first_ipq3": {"$first":"$ipq3"},
+    #"last_ipq3": {"$last":"$ipq3"},
     # Energy Internal Consumption positive direction
-    "first_icq1": {"$first":"$icq1"},
-    "last_icq1": {"$last":"$icq1"},
-    "first_icq2": {"$first":"$icq2"},
-    "last_icq2": {"$last":"$icq2"},
-    "first_icq3": {"$first":"$icq3"},
-    "last_icq3": {"$last":"$icq3"},
+    #"first_icq1": {"$first":"$icq1"},
+    #"last_icq1": {"$last":"$icq1"},
+    #"first_icq2": {"$first":"$icq2"},
+    #"last_icq2": {"$last":"$icq2"},
+    #"first_icq3": {"$first":"$icq3"},
+    #"last_icq3": {"$last":"$icq3"},
     # Energy Load Production positive direction
     "first_lcp1": {"$first":"$lcp1"},
     "last_lcp1": {"$last":"$lcp1"},
@@ -189,8 +203,9 @@ def get_energy_counter_averages_original(periodvalues):
     #print(periodvalues["first_ts"])
     #print("Last timestamp in this group:")
     #print(periodvalues["last_ts"])
+    #["epq1","epq2","epq3","ecq1","ecq2","ecq3","ipq1","ipq2","ipq3","icq1","icq2","icq3","lcp1","lcp2","lcp3","lcq1","lcq2","lcq3","pve","bp","bc"]
     power_avg_item["ts"]=periodvalues["first_ts"]
-    for avg_name in ["epq1","epq2","epq3","ecq1","ecq2","ecq3","ipq1","ipq2","ipq3","icq1","icq2","icq3","lcp1","lcp2","lcp3","lcq1","lcq2","lcq3","pve","bp","bc"]:
+    for avg_name in ["lcp1","lcp2","lcp3","lcq1","lcq2","lcq3","pve","bp","bc"]:
         first_value = periodvalues["first_"+avg_name]
         last_value = periodvalues["last_"+avg_name]
         if (first_value != None and last_value != None):
@@ -218,8 +233,9 @@ def get_energy_counter_averages(aggregate_values):
     #print(aggregate_values["first_ts"])
     #print("Last timestamp in this group:")
     #print(aggregate_values["last_ts"])
+    #["epq1","epq2","epq3","ecq1","ecq2","ecq3","ipq1","ipq2","ipq3","icq1","icq2","icq3","lcp1","lcp2","lcp3","lcq1","lcq2","lcq3","pve","bp","bc"]
     periodvalues["ts"]=aggregate_values["first_ts"].timestamp()
-    for avg_name in ["epq1","epq2","epq3","ecq1","ecq2","ecq3","ipq1","ipq2","ipq3","icq1","icq2","icq3","lcp1","lcp2","lcp3","lcq1","lcq2","lcq3","pve","bp","bc"]:
+    for avg_name in ["lcp1","lcp2","lcp3","lcq1","lcq2","lcq3","pve","bp","bc"]:
         first_value = aggregate_values["first_"+avg_name]
         last_value = aggregate_values["last_"+avg_name]
         if (first_value != None and last_value != None):
