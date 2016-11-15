@@ -179,8 +179,8 @@ def get_energy_counter_averages_new(previous_hour_vals, hour_vals):
     data_hour["ts"] = ts.timestamp()
 
     for avg_name in ["lcp1","lcp2","lcp3","lcq1","lcq2","lcq3"]: #,"pve","bp","bc"
-        
-        if (hour_vals[avg_name] != None and previous_hour_vals[avg_name] != None):
+        #if ((avg_name in previous_day_vals.keys()) and previous_day_vals[avg_name] != None and (avg_name in day_vals.keys()) and day_vals[avg_name] != None):
+        if ((avg_name in hour_vals.keys()) and hour_vals[avg_name] != None and (avg_name in previous_hour_vals.keys()) and previous_hour_vals[avg_name] != None):
             # energy conunter values are in mJ, convert them to kWh
             day_value = unsigned64int_from_words(hour_vals[avg_name][0], hour_vals[avg_name][1], not(hour_vals[avg_name][2])) / 3600000000
             prev_day_value = unsigned64int_from_words(previous_hour_vals[avg_name][0], previous_hour_vals[avg_name][1], not(previous_hour_vals[avg_name][2])) / 3600000000
