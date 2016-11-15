@@ -12,9 +12,9 @@ while True:
             print("Found")
             print(doc)
             # New job found
-            aggr_data = pah.mdb_get_energy_counter_data_grouped_hourly(doc)
+            aggr_data = pah.mdb_get_energy_counter_data_new_hourly(doc) #pah.mdb_get_energy_counter_data_grouped_hourly(doc)
             print(len(aggr_data))
-            hub_aggr = pah.get_energy_counter_aggregate(aggr_data)
+            hub_aggr = pah.get_energy_counter_aggregate_new(aggr_data) #pah.get_energy_counter_aggregate(aggr_data)
             doc["data"]=list(hub_aggr)
             pah.mdb_insert_poweranalysishour_result(doc)
             job_results = {
