@@ -3,9 +3,13 @@ import analysis_config
 import pymongo
 from pymongo import CursorType
 from datetime import datetime
-from datetime import date
-from datetime import timedelta
-from datetime import time
+# from datetime import date
+# from datetime import timedelta
+# from datetime import time
+from datetime_utilities import *
+## New imports
+import collections
+import math
 from bson.son import SON # As python dictionaries don’t maintain order you should use SON or collections.OrderedDict where explicit ordering is required eg “$sort”:
 
 # Constants
@@ -16,6 +20,8 @@ connection = pymongo.MongoClient(analysis_config.main_mongodb_uri)
 db = connection[analysis_config.main_mongodb]
 local_connection = pymongo.MongoClient(analysis_config.local_mongodb_uri)
 local_db = local_connection[analysis_config.local_mongodb]
+## New
+result_object = collections.namedtuple('Result', ['index', 'res'])
 
 
 def mdb_get_energy_counter_data(device_mac, date):
@@ -95,6 +101,103 @@ def mdb_get_energy_counter_enabled_hubs():
 def mdb_insert_power_aggregates(power_aggregate_list):
     db["testar_aggr"].insert_many(power_aggregate_list)
 
+## NEW METHODS
+def mdb_get_energy_counter_data_new_hourly(input):
+
+    utc_adjusted_starttime = cest_as_utc(input["starttime"]) - timedelta(hours=1)
+    utc_adjusted_endtime = cest_as_utc(input["endtime"].replace(second=59)) - timedelta(minutes = 1)
+    
+    delta = utc_adjusted_endtime - utc_adjusted_starttime
+    number_of_hours = math.ceil(delta.total_seconds() / (60*60))
+    print(number_of_hours)
+
+    a = utc_adjusted_endtime
+    b = utc_adjusted_starttime
+
+    index = 0
+    index2 = 0
+
+    resultat = []
+
+    print("From: " + (b + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S") + " To:" + a.strftime("%Y-%m-%d %H:%M:%S"))
+
+    while a > b:
+        toDate = b + timedelta(hours=1)
+        # check which in which order to put in array;
+        index2 = index2 + 1
+        test = mdb_cursorEnergyBars(index, input["energyhubid"], b, toDate)#(toDate - timedelta(seconds=1))
+        
+        if(len(test.res) > 0):
+            #resultat.append(test.res[0])
+            resultat.insert(test.index, test.res[0])
+            #print(test.index)
+            #resultat[test.index] = test.res[0]
+            if index2 == (number_of_hours): 
+                #print("break it!")
+                break
+            else:
+                #callback(null, resultat)
+                index = index + 1;
+                b = toDate
+        else: 
+            print("No data was found")
+            break
+        
+    print(number_of_hours)
+    return resultat
+
+def mdb_cursorEnergyBars(index, id, fromd, tooo):
+    print("Get data from: " + fromd.strftime("%Y-%m-%d %H:%M:%S")  + " to: " + tooo.strftime("%Y-%m-%d %H:%M:%S") )
+    res = list(db.energydata.find({"id": id, "ts":{"$gte": fromd, "$lte": tooo}}).sort([("ts", -1)]).limit(1))
+    ro = result_object(index, res)
+    return ro
+
+def get_energy_counter_aggregate_new(last_list):
+    """Calculates  the average and base values for fetched energy counters aggregate (first_last_list)."""
+    # All this iterating over lists should be replaced with numpy array broadcast(slicing)
+    #periodvalues = {}
+    aggr_res = []
+
+    for index in range(len(last_list) - 1):
+        ## Last vals
+        previous_hour_vals = last_list[index]
+        hour_vals = last_list[index + 1]
+        aggr_res.append(get_energy_counter_averages_new(previous_hour_vals, hour_vals)); 
+    final_re = reversed(aggr_res)
+    return final_re
+
+def get_energy_counter_averages_new(previous_hour_vals, hour_vals):
+
+    """Calculate the averages and return outdata (not trivial to do in db query)
+        Energy = day - previous day / total seconds between current and previous
+
+        Define "last time at day" and check if there is a value for that time, if there is not check the first value for the next day
+    """
+    data_hour = {}
+    energy_counter_data = {}
+    ts = hour_vals["ts"]
+    data_hour["ts"] = ts.timestamp()
+
+    for avg_name in ["epq1","epq2","epq3","ecq1","ecq2","ecq3","ipq1","ipq2","ipq3","icq1","icq2","icq3","lcp1","lcp2","lcp3","lcq1","lcq2","lcq3"]:#,"pve","bp","bc"
+        
+        if (hour_vals[avg_name] != None and previous_hour_vals[avg_name] != None):
+            # energy conunter values are in mJ, convert them to kWh
+            day_value = unsigned64int_from_words(hour_vals[avg_name][0], hour_vals[avg_name][1], not(hour_vals[avg_name][2])) / 3600000000
+            prev_day_value = unsigned64int_from_words(previous_hour_vals[avg_name][0], previous_hour_vals[avg_name][1], not(previous_hour_vals[avg_name][2])) / 3600000000
+            energy_counter_data[avg_name]=(day_value-prev_day_value) #/24
+        else:
+            energy_counter_data[avg_name]=0
+
+    # Set up return values (in kW)
+    data_hour["aipL1"] = energy_counter_data["lcp1"]
+    data_hour["aipL2"] = energy_counter_data["lcp2"]
+    data_hour["aipL3"] = energy_counter_data["lcp3"]
+    data_hour["aip"] = data_hour["aipL1"] + data_hour["aipL2"] + data_hour["aipL3"]
+    
+
+    return data_hour
+### END NEW
+
 def mdb_test(input):
     """
         Fetches energy counter data for an ehub between two dates, returning first and last values for each day.
@@ -117,10 +220,11 @@ def mdb_get_energy_counter_data_grouped_hourly(input):
         If necessary, $project + $subtract + $divide could be used to calculate the averages in MDB.
         Another variation that does not require sorting is to use $max, $min instead of $last, $first
         """
-    utc_adjusted_starttime = (input["starttime"] - timedelta(milliseconds=cest_offset_ms)) #(datetime.combine(input["starttime"],time.min) - timedelta(milliseconds=cest_offset_ms)) #
-    utc_adjusted_endtime = ((input["endtime"].replace(second=59) - timedelta(minutes = 1)) - timedelta(milliseconds=cest_offset_ms)) #.replace(minute=59, second=59) (datetime.combine(input["endtime"], time(0, 59, 59, 999999)) - timedelta(milliseconds=cest_offset_ms)) #
-    print(utc_adjusted_starttime)
-    print(utc_adjusted_endtime)
+    #utc_adjusted_starttime = (input["starttime"] - timedelta(milliseconds=cest_offset_ms))
+    #utc_adjusted_endtime = ((input["endtime"].replace(second=59) - timedelta(minutes = 1)) - timedelta(milliseconds=cest_offset_ms))
+    utc_adjusted_starttime = cest_as_utc(input["starttime"])
+    utc_adjusted_endtime = cest_as_utc(input["endtime"].replace(second=59)) - timedelta(minutes = 1)
+    print("From: " + utc_adjusted_starttime.strftime("%Y-%m-%d %H:%M:%S") + " To:" + utc_adjusted_endtime.strftime("%Y-%m-%d %H:%M:%S"))
     res = list(db.energydata.aggregate(pipeline=
         [{"$match" :{"id": input["energyhubid"] , "ts":{"$gte": utc_adjusted_starttime, "$lte": utc_adjusted_endtime}}},
         { "$sort": { "ts": 1} }, # order by ascending date
@@ -227,13 +331,6 @@ def get_energy_counter_averages(aggregate_values):
     """Calculate the averages and return outdata (not trivial to do in db query)"""
     periodvalues = {}
     energy_counter_data = {}
-    #print("The ehub id in this group:")
-    #print(aggregate_values["_id"])
-    #print("First timestamp in this group:")
-    #print(aggregate_values["first_ts"])
-    #print("Last timestamp in this group:")
-    #print(aggregate_values["last_ts"])
-    #["epq1","epq2","epq3","ecq1","ecq2","ecq3","ipq1","ipq2","ipq3","icq1","icq2","icq3","lcp1","lcp2","lcp3","lcq1","lcq2","lcq3","pve","bp","bc"]
     periodvalues["ts"]=aggregate_values["first_ts"].timestamp()
     for avg_name in ["lcp1","lcp2","lcp3","lcq1","lcq2","lcq3","pve","bp","bc"]:
         first_value = aggregate_values["first_"+avg_name]
@@ -242,13 +339,6 @@ def get_energy_counter_averages(aggregate_values):
             # energy conunter values are in mJ, convert them to kWh
             first_value_64 = unsigned64int_from_words(first_value[0],first_value[1], not(first_value[2]))/3600000000
             last_value_64 = unsigned64int_from_words(last_value[0],last_value[1], not(last_value[2]))/3600000000
-            #print("\nFirst "+avg_name)
-            #print(first_value_64)
-            #print("\nLast "+avg_name)
-            #print(last_value_64)
-            # print("Difference "+avg_name + ":")
-            # print(first_value_64-last_value_64)
-            # print(no_of_seconds_in_a_day)
             # Calculated values are now in kW
             # Using 24h instead of actual timespan between first_ts and last_ts
             energy_counter_data[avg_name]=(last_value_64-first_value_64) #/24
@@ -259,18 +349,4 @@ def get_energy_counter_averages(aggregate_values):
     periodvalues["aipL2"]=energy_counter_data["lcp2"]
     periodvalues["aipL3"]=energy_counter_data["lcp3"]
     periodvalues["aip"] = periodvalues["aipL1"] + periodvalues["aipL2"] + periodvalues["aipL3"]
-    # Reactive power values are currently not present in energy counter data
-    #periodvalues["rip"]=None
-    #periodvalues["ripL1"]=None
-    #periodvalues["ripL2"]=None
-    #periodvalues["ripL3"]=None
-    # Base power may be fetched from DB elsewhere but we set them up here for now
-    #periodvalues["abp"]=None
-    #periodvalues["abpL1"]=None
-    #periodvalues["abpL2"]=None
-    #periodvalues["abpL3"]=None
-    #periodvalues["rbp"]=None
-    #periodvalues["rbpL1"]=None
-    #periodvalues["rbpL2"]=None
-    #periodvalues["rbpL3"]=None
     return periodvalues
